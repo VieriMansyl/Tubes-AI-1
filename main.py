@@ -9,8 +9,10 @@ from typing import Optional
 from Bot import Bot
 from GameState import GameState
 
-# * Import your bot
+# Import bot
 from RandomBot import RandomBot
+from MinMaxBot import MinMaxBot
+from LocalSearchBot import LocalSearchBot
 
 size_of_board = 600
 number_of_dots = 4
@@ -314,5 +316,17 @@ if __name__ == "__main__":
     PvB mode: game_instance = Dots_and_Boxes(None, BotName()) or game_instance = Dots_and_Boxes(BotName(), None)
     BvB mode: game_instance = Dots_and_Boxes(BotName(), BotName())
     """
+    # P1 adalah player :
+    # game_instance = Dots_and_Boxes(None, LocalSearchBot())
+    # game_instance = Dots_and_Boxes(None, MinMaxBot())
+
+    # P2 adalah player :
+    # game_instance = Dots_and_Boxes(LocalSearchBot(), None)
+    # game_instance = Dots_and_Boxes(MinMaxBot(), None)
+
+    # antar Bot :
+    # game_instance = Dots_and_Boxes(LocalSearchBot(), MinMaxBot())
+    # game_instance = Dots_and_Boxes(MinMaxBot(), LocalSearchBot())
+
     game_instance = Dots_and_Boxes(None, RandomBot())
     game_instance.mainloop()
