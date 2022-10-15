@@ -24,8 +24,8 @@ COL_WIDTH = 4
 COL_HEIGHT = 3
 
 # TODO: Nanti ganti males ngitung
-ALPHA = -np.Inf
-BETA = np.Inf
+ALPHA = -np.inf
+BETA = np.inf
 
 # bot dengan mengimplementasi algoritma Minimax Alpha Beta Pruning
 
@@ -110,35 +110,17 @@ class MinMaxBot(Bot):
     # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 
     def _objective_function(self, state: GameState) -> int:
-        # TODO: Selesain ah objective functionnya gua udh bikin backbonenya
-        '''
-        1. itung bnyk box yg terbentuk sesuai player_turn
-        2. itung triangle
-        3. itung chain yg mngkn terbentuk
-        4. pertimbangin +- dari turn player
-        '''
-
-
-        return 0
+        return self.countBoxes(state) + self.chain(state)
 
     def countBoxes(self, state: GameState) -> int:
         count = 0
         for board_row in state.board_status:
             for cell in board_row:
-                if state.player1_turn:
-                    if cell == -4:
+                if cell == -4:
+                    if state.player1_turn:
+                        count = 1
+                    else:
                         count += 1
-                else:
-                    if cell == 4:
-                        count += 1
-        return count
-
-    def countTriangle(self, state: GameState) -> int:
-        count = 0
-        for board_row in state.board_status:
-            for cell in board_row:
-                if cell == -3:
-                    count += 1
         return count
 
     def chain(self, state: GameState) -> int:
@@ -152,6 +134,13 @@ class MinMaxBot(Bot):
     # Chain helper
     # Asumsi i, j merupakan index dari cell yang memiliki board status 3
     def _count_chain(self, state: GameState, i: int, j: int) -> int:
+        
+        # check who's player
+        if state.player1_turn:
+            multiplier = -1
+        else:
+            multiplier = 1
+
         # check if out of bound
         if i < 0 or i >= ROW_WIDTH or j < 0 or j >= COL_HEIGHT:
             return 0
@@ -181,7 +170,7 @@ class MinMaxBot(Bot):
         if action is None:
             return 0
         else:
-            return 1 + self._count_chain(self._inference(state, action),  newi, newj)
+            return (1 + abs(self._count_chain(self._inference(state, action),  newi, newj))) * multiplier
 
     # 'Simulasi' GameState berdasarkan GameAction
     # inferensi() meniru fungsi update() dari main.py
