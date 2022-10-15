@@ -1,3 +1,4 @@
+from typing import NamedTuple
 from Bot import Bot
 from GameAction import GameAction
 from GameState import GameState
@@ -32,6 +33,33 @@ BETA = np.inf
 # f(edge) = B - t +- chain(edge)
 
 
+class GameState(NamedTuple):
+    """
+    board_status: int[][]
+        For each element, if its absolute element is four, then
+        the square has been taken by a player. If element's sign
+        is negative, then it has been taken by player 1. Otherwise,
+        it has been taken by player 2.
+        Access: board_status[y, x]
+
+    row_status: int[][]
+        Represent the horizontal line mark status: 1 for marked, 0 for not.
+        Access: row_status[y, x]
+
+    col_status: int[][]
+        Represent the vertical line mark status: 1 for marked, 0 for not.
+        Access: col_status[y, x]
+
+    player1_turn: bool
+        True if it is player 1 turn, False for player 2.
+    """
+
+    board_status: np.ndarray
+    row_status: np.ndarray
+    col_status: np.ndarray
+    player1_turn: bool
+
+
 # Action yang disimpan, jika state sekarang sesuai dengan current_action, maka lakukan current_state
 class MinMaxAction:
     def __init__(self, current_action: GameAction, current_state: GameState):
@@ -39,12 +67,13 @@ class MinMaxAction:
         self.state = current_state
 
     def is_action_doable(self, state: GameState):
-        return self.state == state
+        # check if state is the same as current state
+        return np.array_equal(self.state.board_status, state.board_status) and np.array_equal(self.state.row_status, state.row_status) and np.array_equal(self.state.col_status, state.col_status) and self.state.player1_turn == state.player1_turn
 
 
 class MinMaxBot(Bot):
     # Path for caching minmax actions, indexed by many actions done before
-    path: list(MinMaxAction) = [None for _ in range(ROW_WIDTH*ROW_HEIGHT + COL_WIDTH*COL_HEIGHT)]
+    path = [None for _ in range(ROW_WIDTH*ROW_HEIGHT + COL_WIDTH*COL_HEIGHT)]
 
     def get_action(self, state: GameState) -> GameAction:
         actions_done = self._count_actions_done(state)
@@ -78,11 +107,12 @@ class MinMaxBot(Bot):
             best = BETA
             for action in actions:
                 next_state = self._inference(state, action)
-                #value dari next_state
+                # value dari next_state
                 value = self._minmax(next_state, alpha, beta)
                 if (value < best):
                     best = value
-                    self.path[actions_done] = MinMaxAction(action, next_state, alpha, beta)
+                    self.path[actions_done] = MinMaxAction(
+                        action, next_state)
                 beta = min(beta, best)
                 if (beta <= alpha):
                     break
@@ -90,20 +120,19 @@ class MinMaxBot(Bot):
             best = ALPHA
             for action in actions:
                 next_state = self._inference(state, action)
-                #value dari next_state
+                # value dari next_state
                 value = self._minmax(next_state, alpha, beta)
                 if (value > best):
                     best = value
-                    self.path[actions_done] = MinMaxAction(action, next_state, alpha, beta)
+                    self.path[actions_done] = MinMaxAction(
+                        action, next_state)
                 alpha = max(alpha, best)
                 if (beta <= alpha):
                     break
         return best
 
     def _count_actions_done(self, state: GameState) -> int:
-        return np.sum(state.row_status) + np.sum(state.col_status)
-
-
+        return int(np.sum(state.row_status) + np.sum(state.col_status))
 
     # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
     # Utils function (diluar minmax tapi digunakan)
@@ -134,7 +163,7 @@ class MinMaxBot(Bot):
     # Chain helper
     # Asumsi i, j merupakan index dari cell yang memiliki board status 3
     def _count_chain(self, state: GameState, i: int, j: int) -> int:
-        
+
         # check who's player
         if state.player1_turn:
             multiplier = -1
@@ -191,31 +220,35 @@ class MinMaxBot(Bot):
 
         # Update Board Status below edge (row) or right edge (col)
         if y < 3 and x < 3:
-            new_state.board_status[y][x] = (abs(new_state.board_status[y][x]) + 1) * player_modifier
+            new_state.board_status[y][x] = (
+                abs(new_state.board_status[y][x]) + 1) * player_modifier
             if (abs(new_state.board_status[y][x]) == 4):
                 score = True
 
         # Update Row Status
-        if action.type == "row":
+        if action.action_type == "row":
             new_state.row_status[y][x] = 1
             # Update Board Status above edge (row)
             if y >= 1:
-                new_state.board_status[y-1][x] = (abs(new_state.board_status[y-1][x]) + 1) * player_modifier
+                new_state.board_status[y-1][x] = (
+                    abs(new_state.board_status[y-1][x]) + 1) * player_modifier
                 if (abs(new_state.board_status[y-1][x]) == 4):
                     score = True
 
         # Update Col Status
-        elif action.type == "col":
+        elif action.action_type == "col":
             new_state.col_status[y][x] = 1
             # Update Board Status left edge (col)
             if x >= 1:
-                new_state.board_status[y][x-1] = (abs(new_state.board_status[y][x-1]) + 1) * player_modifier
-                if (abs(new_state.board_status[y-1][x]) == 4):
+                new_state.board_status[y][x-1] = (
+                    abs(new_state.board_status[y][x-1]) + 1) * player_modifier
+                if (abs(new_state.board_status[y][x-1]) == 4):
                     score = True
 
         # ganti giliran player
         if not score:
-            new_state.player1_turn = not new_state.player1_turn
+            new_state = GameState(new_state.board_status, new_state.row_status,
+                                  new_state.col_status, not new_state.player1_turn)
 
         return new_state
 
@@ -224,18 +257,18 @@ class MinMaxBot(Bot):
         actions = []
         for i in range(ROW_HEIGHT):
             for j in range(ROW_WIDTH):
-                if state.row_status[i] == 0:
+                if state.row_status[i][j] == 0:
                     actions.append(GameAction('row', (i, j)))
 
         for i in range(COL_HEIGHT):
             for j in range(COL_WIDTH):
-                if state.col_status[i] == 0:
+                if state.col_status[i][j] == 0:
                     actions.append(GameAction('col', (i, j)))
 
         return actions
 
+    # prediksi banyak kotak yang terbentuk dari action
 
-    #prediksi banyak kotak yang terbentuk dari action
     def predictCreatedBoxes(self, position, action, state: GameState) -> int:
         if action == "row":
             (rowY, rowX) = position
@@ -283,7 +316,7 @@ class MinMaxBot(Bot):
 
             return boxesCreated
 
-    #prediksi banyak 'triangle' yang terbentuk dari action
+    # prediksi banyak 'triangle' yang terbentuk dari action
     def predictCreatedTriangle(self, position, action, state: GameState) -> int:
         if action == "row":
             (rowY, rowX) = position
