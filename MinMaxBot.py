@@ -141,8 +141,47 @@ class MinMaxBot(Bot):
                     count += 1
         return count
 
-    def chain(self, position, action, state: GameState) -> int:
-        print("bikin chain disini ges")
+    def chain(self, state: GameState) -> int:
+        count = 0
+        for i in range(ROW_WIDTH):
+            for j in range(COL_HEIGHT):
+                if abs(state.board_status[i][j]) == 3:
+                    count += self._count_chain(state, i, j)
+        return count
+
+    # Chain helper
+    # Asumsi i, j merupakan index dari cell yang memiliki board status 3
+    def _count_chain(self, state: GameState, i: int, j: int) -> int:
+        # check if out of bound
+        if i < 0 or i >= ROW_WIDTH or j < 0 or j >= COL_HEIGHT:
+            return 0
+
+        newi = i
+        newj = j
+
+        action = None
+        if state.row_status[i][j] == 0:
+            action = GameAction('row', [i, j])
+            newi = i - 1
+            newj = j
+        elif j+1 < ROW_WIDTH and state.row_status[i][j+1] == 0:
+            action = GameAction('row', [i, j+1])
+            newi = i + 1
+            newj = j
+        elif state.col_status[i][j] == 0:
+            action = GameAction('col', [i, j])
+            newi = i
+            newj = j - 1
+        elif i+1 < COL_HEIGHT and state.col_status[i+1][j] == 0:
+            action = GameAction('col', [i+1, j])
+            newi = i
+            newj = j + 1
+
+        # check if there's more
+        if action is None:
+            return 0
+        else:
+            return 1 + self._count_chain(self._inference(state, action),  newi, newj)
 
     # 'Simulasi' GameState berdasarkan GameAction
     # inferensi() meniru fungsi update() dari main.py
