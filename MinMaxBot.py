@@ -88,7 +88,7 @@ class MinMaxBot(Bot):
             # ini kalo di read bisa tau kita menang ato ga
             self._minmax(state, ALPHA, BETA)
 
-        return self.path[actions_done].action
+        return GameAction(self.path[actions_done].action.action_type, (self.path[actions_done].action.position[1], self.path[actions_done].action.position[0]))
 
     def _minmax(self, state: GameState, alpha: int, beta: int) -> int:
         # Get all possible actions
@@ -113,8 +113,7 @@ class MinMaxBot(Bot):
                     best = value
                     self.path[actions_done] = MinMaxAction(
                         action, next_state)
-                beta = min(beta, best)
-                if (beta <= alpha):
+                if best <= beta:
                     break
         else:
             best = ALPHA
@@ -126,8 +125,7 @@ class MinMaxBot(Bot):
                     best = value
                     self.path[actions_done] = MinMaxAction(
                         action, next_state)
-                alpha = max(alpha, best)
-                if (beta <= alpha):
+                if best >= alpha:
                     break
         return best
 
@@ -147,7 +145,7 @@ class MinMaxBot(Bot):
             for cell in board_row:
                 if cell == -4:
                     if state.player1_turn:
-                        count = 1
+                        count -= 1
                     else:
                         count += 1
         return count
@@ -204,8 +202,8 @@ class MinMaxBot(Bot):
     # 'Simulasi' GameState berdasarkan GameAction
     # inferensi() meniru fungsi update() dari main.py
     def _inference(self, state: GameState, action: GameAction) -> GameState:
-        new_state = GameState(state.board_status, state.row_status,
-                              state.col_status, state.player1_turn)
+        new_state = GameState(state.board_status.copy(), state.row_status.copy(),
+                              state.col_status.copy(), state.player1_turn)
 
         # Get Player Modifier
         player_modifier = 1
@@ -219,7 +217,7 @@ class MinMaxBot(Bot):
         score = False
 
         # Update Board Status below edge (row) or right edge (col)
-        if y < 3 and x < 3:
+        if y < ROW_WIDTH and x < COL_HEIGHT:
             new_state.board_status[y][x] = (
                 abs(new_state.board_status[y][x]) + 1) * player_modifier
             if (abs(new_state.board_status[y][x]) == 4):
