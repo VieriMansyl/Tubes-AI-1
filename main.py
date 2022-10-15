@@ -65,7 +65,6 @@ class Dots_and_Boxes():
 
         self.already_marked_boxes = []
         self.display_turn_text()
-
         self.turn()
 
     def mainloop(self):

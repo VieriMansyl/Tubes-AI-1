@@ -156,7 +156,7 @@ class LocalSearchBot(Bot):
                     action_picked = action
                     prev_state = next_state
 
-        # Simulates thonking time
+        # Simulates thinking time
         time.sleep(0.15)
         
         return action_picked
@@ -179,6 +179,10 @@ class LocalSearchBot(Bot):
         position = self.get_random_position_with_zero_value(state.row_status)
         return GameAction("row", position)
 
+    def get_random_col_action(self, state: GameState) -> GameAction:
+        position = self.get_random_position_with_zero_value(state.col_status)
+        return GameAction("col", position)
+
     def get_random_position_with_zero_value(self, matrix: np.ndarray):
         [ny, nx] = matrix.shape
 
@@ -191,6 +195,3 @@ class LocalSearchBot(Bot):
             valid = matrix[y, x] == 0
         return (x, y)
 
-    def get_random_col_action(self, state: GameState) -> GameAction:
-        position = self.get_random_position_with_zero_value(state.col_status)
-        return GameAction("col", position)

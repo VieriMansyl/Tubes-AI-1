@@ -1,23 +1,8 @@
-from typing import NamedTuple
 from Bot import Bot
 from GameAction import GameAction
 from GameState import GameState
 import numpy as np
-
-'''
-state dari game :
-
-- row_status :
-[0 , 0 , 0]
-[0 , 0 , 0]
-[0 , 0 , 0]
-[0 , 0 , 0]
-
-- col_status :
-[0 , 0 , 0 , 0]
-[0 , 0 , 0 , 0]
-[0 , 0 , 0 , 0]
-'''
+import time
 
 ROW_WIDTH = 3
 ROW_HEIGHT = 4
@@ -31,33 +16,6 @@ BETA = np.inf
 # bot dengan mengimplementasi algoritma Minimax Alpha Beta Pruning
 
 # f(edge) = B - t +- chain(edge)
-
-
-class GameState(NamedTuple):
-    """
-    board_status: int[][]
-        For each element, if its absolute element is four, then
-        the square has been taken by a player. If element's sign
-        is negative, then it has been taken by player 1. Otherwise,
-        it has been taken by player 2.
-        Access: board_status[y, x]
-
-    row_status: int[][]
-        Represent the horizontal line mark status: 1 for marked, 0 for not.
-        Access: row_status[y, x]
-
-    col_status: int[][]
-        Represent the vertical line mark status: 1 for marked, 0 for not.
-        Access: col_status[y, x]
-
-    player1_turn: bool
-        True if it is player 1 turn, False for player 2.
-    """
-
-    board_status: np.ndarray
-    row_status: np.ndarray
-    col_status: np.ndarray
-    player1_turn: bool
 
 
 # Action yang disimpan, jika state sekarang sesuai dengan current_action, maka lakukan current_state
@@ -74,23 +32,26 @@ class MinMaxAction:
 class MinMaxBot(Bot):
     # Path for caching minmax actions, indexed by many actions done before
     path = [None for _ in range(ROW_WIDTH*ROW_HEIGHT + COL_WIDTH*COL_HEIGHT)]
-
+    
     def get_action(self, state: GameState) -> GameAction:
+        start = time.time()
         actions_done = self._count_actions_done(state)
 
         # If not cached, then calculate
         if (self.path[actions_done] is None):
             # ini kalo di read bisa tau kita menang ato ga
-            self._minmax(state, ALPHA, BETA)
+            self._minmax(start, state, ALPHA, BETA)
 
         # If the cached state is not doable, then calculate
         if (not self.path[actions_done].is_action_doable(state)):
             # ini kalo di read bisa tau kita menang ato ga
-            self._minmax(state, ALPHA, BETA)
+            self._minmax(start, state, ALPHA, BETA)
+        
+        aksi = GameAction(self.path[actions_done].action.action_type, (self.path[actions_done].action.position[1], self.path[actions_done].action.position[0]))
+        print (f"ambil {aksi}")
+        return aksi
 
-        return GameAction(self.path[actions_done].action.action_type, (self.path[actions_done].action.position[1], self.path[actions_done].action.position[0]))
-
-    def _minmax(self, state: GameState, alpha: int, beta: int) -> int:
+    def _minmax(self, start, state: GameState, alpha: int, beta: int) -> int:
         # Get all possible actions
         actions = self._get_all_possible_actions(state)
 
@@ -98,34 +59,43 @@ class MinMaxBot(Bot):
         if (len(actions) == 0):
             return self._objective_function(state)
 
+        end = time.time()
         # Get how many actions has been done
         actions_done = self._count_actions_done(state)
-
-        # FIXME: pls di tes dong klo gak work aing soalnya cuma ngikutin website doang
+        
+        if end - start >= 0.5:
+            return 0
+        
         # If it's player 1 turn then it's minimizing player
         if (state.player1_turn):
-            best = BETA
+            best = -ALPHA     # np.inf
             for action in actions:
                 next_state = self._inference(state, action)
                 # value dari next_state
-                value = self._minmax(next_state, alpha, beta)
+                value = self._minmax(start, next_state, alpha, beta)
                 if (value < best):
                     best = value
-                    self.path[actions_done] = MinMaxAction(
-                        action, next_state)
-                if best <= beta:
+                    self.path[actions_done] = MinMaxAction(action, next_state)
+                beta = min(beta, best)
+                # pruning
+                print(f"DI BETA : alpha - beta = {alpha} , {beta}")
+                if (abs(beta) <= alpha):
+                    print(f"DI BETA : KENA PRUNING")
                     break
         else:
-            best = ALPHA
+            best = -BETA    # -np.inf
             for action in actions:
                 next_state = self._inference(state, action)
                 # value dari next_state
-                value = self._minmax(next_state, alpha, beta)
+                value = self._minmax(start, next_state, alpha, beta)
                 if (value > best):
                     best = value
-                    self.path[actions_done] = MinMaxAction(
-                        action, next_state)
-                if best >= alpha:
+                    self.path[actions_done] = MinMaxAction(action, next_state)
+                alpha = max(alpha, best)
+                # pruning
+                print(f"DI ALPHA : alpha - beta = {alpha} , {beta}")
+                if (abs(beta) <= alpha):
+                    print(f"DI ALPHA : KENA PRUNING")
                     break
         return best
 
@@ -137,6 +107,7 @@ class MinMaxBot(Bot):
     # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 
     def _objective_function(self, state: GameState) -> int:
+        print(f"====================================================> {self.countBoxes(state)} + {self.chain(state)}")
         return self.countBoxes(state) + self.chain(state)
 
     def countBoxes(self, state: GameState) -> int:
@@ -264,100 +235,3 @@ class MinMaxBot(Bot):
                     actions.append(GameAction('col', (i, j)))
 
         return actions
-
-    # prediksi banyak kotak yang terbentuk dari action
-
-    def predictCreatedBoxes(self, position, action, state: GameState) -> int:
-        if action == "row":
-            (rowY, rowX) = position
-            # garis edge di paling atas, g perlu cek area box atas
-            areaAtas = state.col_status[rowY][rowX] + \
-                state.row_status[rowY+1][rowX] + \
-                state.col_status[rowY][rowX+1] \
-                if rowY != 0 else -1
-
-            # garis edge di pling bawah, g perlu cek area box bawah
-            areaBawah = state.col_status[rowY-1][rowX] + \
-                state.row_status[rowY-1][rowX] + \
-                state.col_status[rowY-1][rowX+1] \
-                if rowY != len(state.row_status)-1 else -1
-
-            # banyak kotak yg terbentuk akibat aksi 'action' pd posisi 'position'
-            boxesCreated = 0
-            if areaAtas == 3:  # jika area atas akan membentuk box ketika 'action' dilakukan
-                boxesCreated += 1
-            if areaBawah == 3:  # jika area bawah akan membentuk box ketika 'action' dilakukan
-                boxesCreated += 1
-
-            return boxesCreated
-
-        elif action == "col":
-            (colY, colX) = position
-            # garis edge di paling kiri, g perlu cek area box kanan
-            areaKiri = state.row_status[colY][colX-1] + \
-                state.col_status[colY][colX-1] + \
-                state.row_status[colY+1][colX-1] \
-                if colX != 0 else -1
-
-            # garis edge di pling kanan, g perlu cek area box kiri
-            areaKanan = state.row_status[colY][colX] + \
-                state.col_status[colY][colX+1] + \
-                state.row_status[colY+1][colX] \
-                if colX != len(state.col_status[0])-1 else -1
-
-            # banyak kotak yg terbentuk akibat aksi 'action' pd posisi 'position'
-            boxesCreated = 0
-            if areaKiri == 3:  # jika area kiri akan membentuk box ketika 'action' dilakukan
-                boxesCreated += 1
-            if areaKanan == 3:  # jika area kanan akan membentuk box ketika 'action' dilakukan
-                boxesCreated += 1
-
-            return boxesCreated
-
-    # prediksi banyak 'triangle' yang terbentuk dari action
-    def predictCreatedTriangle(self, position, action, state: GameState) -> int:
-        if action == "row":
-            (rowY, rowX) = position
-            # garis edge di paling atas, g perlu cek area triangle atas
-            areaAtas = state.col_status[rowY][rowX] + \
-                state.row_status[rowY+1][rowX] + \
-                state.col_status[rowY][rowX+1] \
-                if rowY != 0 else -1
-
-            # garis edge di paling bawah, g perlu cek area triangle bawah
-            areaBawah = state.col_status[rowY-1][rowX] + \
-                state.row_status[rowY-1][rowX] + \
-                state.col_status[rowY-1][rowX+1] \
-                if rowY != len(state.row_status)-1 else -1
-
-            # banyak 'triangle' yg terbentuk akibat aksi 'action' pd posisi 'position'
-            TrianglesCreated = 0
-            if areaAtas == 2:  # jika area atas akan membentuk Triangle ketika 'action' dilakukan
-                TrianglesCreated += 1
-            if areaBawah == 2:  # jika area bawah akan membentuk Triangle ketika 'action' dilakukan
-                TrianglesCreated += 1
-
-            return TrianglesCreated
-
-        elif action == "col":
-            (colY, colX) = position
-            # garis edge di paling kiri, g perlu cek area triangle kanan
-            areaKiri = state.row_status[colY][colX-1] + \
-                state.col_status[colY][colX-1] + \
-                state.row_status[colY+1][colX-1] \
-                if colX != 0 else -1
-
-            # garis edge di pling kanan, g perlu cek area triangle kiri
-            areaKanan = state.row_status[colY][colX] + \
-                state.col_status[colY][colX+1] + \
-                state.row_status[colY+1][colX] \
-                if colX != len(state.col_status[0])-1 else -1
-
-            # banyak 'triangle' yg terbentuk akibat aksi 'action' pd posisi 'position'
-            TrianglesCreated = 0
-            if areaKiri == 2:  # jika area kiri akan membentuk Triangle ketika 'action' dilakukan
-                TrianglesCreated += 1
-            if areaKanan == 2:  # jika area kanan akan membentuk Triangle ketika 'action' dilakukan
-                TrianglesCreated += 1
-
-            return TrianglesCreated
