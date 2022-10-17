@@ -339,11 +339,11 @@ if __name__ == "__main__":
 
     # P2 adalah player :
     # game_instance = Dots_and_Boxes(LocalSearchBot(), None)
-    # game_instance = Dots_and_Boxes(MinMaxBot(), None)
+    game_instance = Dots_and_Boxes(MinMaxBot(), None)
 
     # antar Bot :
     # game_instance = Dots_and_Boxes(LocalSearchBot(), MinMaxBot())
     # game_instance = Dots_and_Boxes(MinMaxBot(), LocalSearchBot())
 
-    game_instance = Dots_and_Boxes(None, MinMaxBot())
+    # game_instance = Dots_and_Boxes(None, MinMaxBot())
     game_instance.mainloop()
