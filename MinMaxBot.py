@@ -1,5 +1,4 @@
 from random import shuffle
-from typing import NamedTuple
 from Bot import Bot
 from GameAction import GameAction
 from GameState import GameState
@@ -28,32 +27,20 @@ class MinMaxAction:
 
 
 class MinMaxBot(Bot):
-    # Path for caching minmax actions, indexed by many actions done before
-    path = [None for _ in range(ROW_WIDTH*ROW_HEIGHT + COL_WIDTH*COL_HEIGHT)]
 
     def get_action(self, state: GameState) -> GameAction:
-        actions_done = self._count_actions_done(state)
-
-        # If not cached, then calculate
-        if (self.path[actions_done] is None or not self.path[actions_done].is_action_doable(state)):
-            # ini kalo di read bisa tau kita menang ato ga
-            _, action = self._minmax(state, ALPHA, BETA, 0)
-
+        _, action = self._minmax(state, ALPHA, BETA, 0)
         return GameAction(action.action_type, (action.position[1], action.position[0]))
 
     def _minmax(self, state: GameState, alpha: int, beta: int, depth: int) -> tuple[int, GameAction]:
         # Get all possible actions
         actions = self._get_all_possible_actions(state)
 
-        # If no possible actions, then return objective function
+        # If no possible actions or has reach depth = 6, then return objective function
         if (len(actions) == 0 or depth == 6):
             a = self._objective_function(state)
             return a, None
 
-        # Get how many actions has been done
-        actions_done = self._count_actions_done(state)
-
-        # FIXME: pls di tes dong klo gak work aing soalnya cuma ngikutin website doang
         # If it's player 1 turn then it's minimizing player
         if (state.player1_turn):
             best = BETA
@@ -67,8 +54,6 @@ class MinMaxBot(Bot):
                     best_action = action
 
                 if (beta > best):
-                    self.path[actions_done] = MinMaxAction(
-                        action, next_state)
                     beta = best
 
                 if beta <= alpha:
@@ -85,16 +70,11 @@ class MinMaxBot(Bot):
                     best_action = action
 
                 if (alpha < best):
-                    self.path[actions_done] = MinMaxAction(
-                        action, next_state)
                     alpha = best
                 if beta <= alpha:
                     break
 
         return best, best_action
-
-    def _count_actions_done(self, state: GameState) -> int:
-        return int(np.sum(state.row_status) + np.sum(state.col_status))
 
     # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
     # Utils function (diluar minmax tapi digunakan)
@@ -111,9 +91,9 @@ class MinMaxBot(Bot):
             for cell in board_row:
                 if cell == -4:
                     if state.player1_turn:
-                        count -= 1
+                        count -= 3
                     else:
-                        count += 1
+                        count += 3
         return count
 
     def chain(self, state: GameState) -> int:
@@ -163,7 +143,7 @@ class MinMaxBot(Bot):
         if action is None:
             return 0
         else:
-            return (2 + abs(self._count_chain(self._inference(state, action),  newi, newj))) * multiplier
+            return (1 + abs(self._count_chain(self._inference(state, action),  newi, newj))) * multiplier
 
     # 'Simulasi' GameState berdasarkan GameAction
     # inferensi() meniru fungsi update() dari main.py
