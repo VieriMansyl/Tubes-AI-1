@@ -155,7 +155,7 @@ class LocalSearchBot(Bot):
         prev_state = self._inference(state, action_picked)
         prev_state_obj_func = self._objective_function(prev_state)
         actions_checked = []
-        for i in range(round((24 - all_moves_marked) * 1)):
+        for i in range(round((24 - all_moves_marked) * 0.7)):
             action = self.get_random_action(state)
             while action in actions_checked:
                 action = self.get_random_action(state)
