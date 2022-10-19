@@ -3,7 +3,7 @@ from GameAction import GameAction
 from GameState import GameState
 import random
 import numpy as np
-import time
+import threading
 
 # bot dengan mengimplementasi algoritma Local Search
 
@@ -12,36 +12,45 @@ ROW_HEIGHT = 4
 COL_WIDTH = 4
 COL_HEIGHT = 3
 
+
 class LocalSearchBot(Bot):
     """
-        Assuming the result of obj_func will be greater if the state is better for LSBot.
-        
+        Assuming the goal of obj_func is the same as MMB
     """
+    has_time = True
+
+    def timer_ends(self):
+        self.has_time = False
+        print("Time exceeded")
+
     def _objective_function(self, state: GameState) -> int:
-        return self.countBoxes(state) + self.chain(state)
+        b = self.countBoxes(state)
+        c = self.chain(state)
+        print("b:", b, "c:", c)
+        return b + c
 
     def countBoxes(self, state: GameState) -> int:
         count = 0
         for board_row in state.board_status:
             for cell in board_row:
                 if cell == -4:
-                    if state.player1_turn:
-                        count = 1
-                    else:
+                        count -= 1
+                elif cell == 4:
                         count += 1
+                
         return count
 
     def chain(self, state: GameState) -> int:
         count = 0
         for i in range(ROW_WIDTH):
             for j in range(COL_HEIGHT):
-                if abs(state.board_status[i][j]) == 3:
-                    count += self._count_chain(state, i, j)
+                if abs(state.board_status[j][i]) == 3:
+                    count += self._count_chain(state, i, j, 0)
         return count
 
     # Chain helper
     # Asumsi i, j merupakan index dari cell yang memiliki board status 3
-    def _count_chain(self, state: GameState, i: int, j: int) -> int:
+    def _count_chain(self, state: GameState, i: int, j: int, iteration: int) -> int:
 
         # check who's player
         if state.player1_turn:
@@ -57,28 +66,30 @@ class LocalSearchBot(Bot):
         newj = j
 
         action = None
-        if state.row_status[i][j] == 0:
+        if state.row_status[j][i] == 0:             # Top side of the box
             action = GameAction('row', [i, j])
-            newi = i - 1
-            newj = j
-        elif j+1 < ROW_WIDTH and state.row_status[i][j+1] == 0:
-            action = GameAction('row', [i, j+1])
-            newi = i + 1
-            newj = j
-        elif state.col_status[i][j] == 0:
-            action = GameAction('col', [i, j])
             newi = i
             newj = j - 1
-        elif i+1 < COL_HEIGHT and state.col_status[i+1][j] == 0:
-            action = GameAction('col', [i+1, j])
-            newi = i
+        elif state.row_status[j+1][i] == 0:           # Bottom side of the box
+            action = GameAction('row', [i, j+1])
+            newi = i 
             newj = j + 1
+        elif state.col_status[j][i] == 0:           # Left side of the box
+            action = GameAction('col', [i, j])      
+            newi = i - 1
+            newj = j  
+        elif state.col_status[j][i+1] == 0:         # Right side of the box
+            action = GameAction('col', [i+1, j])
+            newi = i + 1
+            newj = j 
 
         # check if there's more
         if action is None:
             return 0
+        elif iteration == 20:
+            return 0
         else:
-            return (1 + abs(self._count_chain(self._inference(state, action),  newi, newj))) * multiplier
+            return (1 + abs(self._count_chain(self._inference(state, action),  newi, newj, iteration+1))) * multiplier
 
     # 'Simulasi' GameState berdasarkan GameAction
     # inferensi() meniru fungsi update() dari main.py
@@ -136,29 +147,41 @@ class LocalSearchBot(Bot):
             Returns the action to be taken by the bot.
             uses stochastic hill climbing algorithm
         """
+        timer_thread = threading.Timer(4.9, self.timer_ends)
+        self.has_time = True 
+        timer_thread.start()
+
         all_moves_marked = state.row_status.sum() + state.col_status.sum()
 
         action_picked: GameAction = self.get_random_action(state)
-        prev_state = state
+        prev_state = self._inference(state, action_picked)
+        prev_state_obj_func = self._objective_function(prev_state)
+        print("First action picked is", action_picked, "with obj func:", prev_state_obj_func)
         actions_checked = []
-        for i in range(round((24 - all_moves_marked) * 0.7)):
+        for i in range(round((24 - all_moves_marked) * 1)):
             action = self.get_random_action(state)
             while action in actions_checked:
                 action = self.get_random_action(state)
             actions_checked.append(action)
             next_state = self._inference(state, action)
+            next_state_obj_func = self._objective_function(next_state)
+            print("Iteration", i, "has obj function:", next_state_obj_func, "with action", action)
             if state.player1_turn:          # Player 1 minimizes
-                if self._objective_function(next_state) < self._objective_function(prev_state):
+                if next_state_obj_func < self._objective_function(prev_state):
+                    print("-> Picked a new act with obj func", next_state_obj_func, "rather than", self._objective_function(prev_state))
                     action_picked = action
                     prev_state = next_state
             else:                           # Player 2 maximizes
-                if self._objective_function(next_state) > self._objective_function(prev_state):
+                if next_state_obj_func > self._objective_function(prev_state):
+                    print("-> Picked a new act with obj func", next_state_obj_func , "rather than", self._objective_function(prev_state))
                     action_picked = action
                     prev_state = next_state
-
-        # Simulates thonking time
-        time.sleep(0.15)
+            if not self.has_time:
+                break
         
+        if self.has_time: timer_thread.cancel()
+        print("Obj function picked is:", self._objective_function(prev_state), "with action", action_picked)
+        print("Curr state:", prev_state)
         return action_picked
 
     def get_random_action(self, state: GameState) -> GameAction:
