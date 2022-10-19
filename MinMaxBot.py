@@ -36,15 +36,13 @@ class MinMaxBot(Bot):
     def _set_do_action(self):
         _, action = self._minmax(self.cur_state, ALPHA, BETA, 0)
         self.do_action = action
-        print("berhasil (ril)")
 
     def get_action(self, state: GameState) -> GameAction:
         self.cur_state = state
         self.do_action = self._get_all_possible_actions(state)[0]
         t = threading.Thread(target=self._set_do_action, daemon=True)
         t.start()
-        time.sleep(5)
-
+        time.sleep(4.9)
         return GameAction(self.do_action.action_type, (self.do_action.position[1], self.do_action.position[0]))
 
     def _minmax(self, state: GameState, alpha: int, beta: int, depth: int) -> Tuple[int, GameAction]:
@@ -52,11 +50,11 @@ class MinMaxBot(Bot):
         actions = self._get_all_possible_actions(state)
 
         # If no possible actions or has reach depth = 6, then return objective function
-        if (len(actions) == 0 or depth == 10):
+        if (len(actions) == 0 or depth == 6):
             a = self._objective_function(state)
             return a, None
 
-        # If it's player 1 turn then it's minimizing player
+        # player 1 is minimizing player
         if (state.player1_turn):
             best = BETA
             best_action = None
@@ -64,37 +62,32 @@ class MinMaxBot(Bot):
                 next_state = self._inference(state, action)
                 # value dari next_state
                 value, _ = self._minmax(next_state, alpha, beta, depth + 1)
+                # next_state lebih baik dibanding (current) state
                 if (value < best):
                     best = value
                     best_action = action
-
                 if (beta > best):
                     beta = best
-
                 if beta <= alpha:
                     break
-
         else:
+        # player 2 is maximizing player
             best = ALPHA
             for action in actions:
                 next_state = self._inference(state, action)
                 # value dari next_state
                 value, _ = self._minmax(next_state, alpha, beta, depth + 1)
+                # next_state lebih baik dibanding (current) state
                 if (value > best):
                     best = value
                     best_action = action
-
                 if (alpha < best):
                     alpha = best
                 if beta <= alpha:
                     break
 
-
         return best, best_action
 
-    # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-    # Utils function (diluar minmax tapi digunakan)
-    # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 
     def _objective_function(self, state: GameState) -> int:
         b = self.countBoxes(state)
@@ -106,10 +99,9 @@ class MinMaxBot(Bot):
         for board_row in state.board_status:
             for cell in board_row:
                 if cell == -4:
-                    if state.player1_turn:
-                        count -= 3
-                    else:
-                        count += 3
+                    count -= 1
+                elif cell == 4:
+                    count += 1
         return count
 
     def chain(self, state: GameState) -> int:

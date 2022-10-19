@@ -21,12 +21,10 @@ class LocalSearchBot(Bot):
 
     def timer_ends(self):
         self.has_time = False
-        print("Time exceeded")
 
     def _objective_function(self, state: GameState) -> int:
         b = self.countBoxes(state)
         c = self.chain(state)
-        print("b:", b, "c:", c)
         return b + c
 
     def countBoxes(self, state: GameState) -> int:
@@ -34,9 +32,9 @@ class LocalSearchBot(Bot):
         for board_row in state.board_status:
             for cell in board_row:
                 if cell == -4:
-                        count -= 1
+                    count -= 1
                 elif cell == 4:
-                        count += 1
+                    count += 1
                 
         return count
 
@@ -156,7 +154,6 @@ class LocalSearchBot(Bot):
         action_picked: GameAction = self.get_random_action(state)
         prev_state = self._inference(state, action_picked)
         prev_state_obj_func = self._objective_function(prev_state)
-        print("First action picked is", action_picked, "with obj func:", prev_state_obj_func)
         actions_checked = []
         for i in range(round((24 - all_moves_marked) * 1)):
             action = self.get_random_action(state)
@@ -165,23 +162,20 @@ class LocalSearchBot(Bot):
             actions_checked.append(action)
             next_state = self._inference(state, action)
             next_state_obj_func = self._objective_function(next_state)
-            print("Iteration", i, "has obj function:", next_state_obj_func, "with action", action)
             if state.player1_turn:          # Player 1 minimizes
                 if next_state_obj_func < self._objective_function(prev_state):
-                    print("-> Picked a new act with obj func", next_state_obj_func, "rather than", self._objective_function(prev_state))
                     action_picked = action
                     prev_state = next_state
             else:                           # Player 2 maximizes
                 if next_state_obj_func > self._objective_function(prev_state):
-                    print("-> Picked a new act with obj func", next_state_obj_func , "rather than", self._objective_function(prev_state))
                     action_picked = action
                     prev_state = next_state
             if not self.has_time:
                 break
         
-        if self.has_time: timer_thread.cancel()
-        print("Obj function picked is:", self._objective_function(prev_state), "with action", action_picked)
-        print("Curr state:", prev_state)
+        if self.has_time:
+            timer_thread.cancel()
+
         return action_picked
 
     def get_random_action(self, state: GameState) -> GameAction:
