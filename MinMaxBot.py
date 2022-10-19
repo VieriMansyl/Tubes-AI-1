@@ -1,8 +1,11 @@
 from random import shuffle
+import time
 from Bot import Bot
 from GameAction import GameAction
 from GameState import GameState
 import numpy as np
+from typing import List, Tuple
+import threading
 
 # bot dengan mengimplementasi algoritma Minimax Alpha Beta Pruning
 
@@ -27,17 +30,29 @@ class MinMaxAction:
 
 
 class MinMaxBot(Bot):
+    do_action = None
+    cur_state = None
+
+    def _set_do_action(self):
+        _, action = self._minmax(self.cur_state, ALPHA, BETA, 0)
+        self.do_action = action
+        print("berhasil (ril)")
 
     def get_action(self, state: GameState) -> GameAction:
-        _, action = self._minmax(state, ALPHA, BETA, 0)
-        return GameAction(action.action_type, (action.position[1], action.position[0]))
+        self.cur_state = state
+        self.do_action = self._get_all_possible_actions(state)[0]
+        t = threading.Thread(target=self._set_do_action, daemon=True)
+        t.start()
+        time.sleep(5)
 
-    def _minmax(self, state: GameState, alpha: int, beta: int, depth: int) -> tuple[int, GameAction]:
+        return GameAction(self.do_action.action_type, (self.do_action.position[1], self.do_action.position[0]))
+
+    def _minmax(self, state: GameState, alpha: int, beta: int, depth: int) -> Tuple[int, GameAction]:
         # Get all possible actions
         actions = self._get_all_possible_actions(state)
 
         # If no possible actions or has reach depth = 6, then return objective function
-        if (len(actions) == 0 or depth == 6):
+        if (len(actions) == 0 or depth == 10):
             a = self._objective_function(state)
             return a, None
 
@@ -73,6 +88,7 @@ class MinMaxBot(Bot):
                     alpha = best
                 if beta <= alpha:
                     break
+
 
         return best, best_action
 
@@ -197,7 +213,7 @@ class MinMaxBot(Bot):
         return new_state
 
     # To get all possible actions
-    def _get_all_possible_actions(self, state: GameState) -> list[GameAction]:
+    def _get_all_possible_actions(self, state: GameState) -> List[GameAction]:
         actions = []
         for i in range(ROW_HEIGHT):
             for j in range(ROW_WIDTH):
